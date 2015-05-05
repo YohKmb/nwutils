@@ -1,13 +1,20 @@
 #! /usr/bin/env ruby
 
+
 require "optparse"
 
-# SUBCMDS = {"set" => :set, "unset" => :unset, "start" => :start, "stop" => :stop}
-SUBCMDS = ["add", "del", "start", "stop"]
+
+SUBCMDS = {"add" => "va", "del" => "", "ping" => "tl"}
   
 BRIDGE_DEFAULT = "vbr0"
 SVI_NAME = "svi"
   
+SUBNET = "192.168.%d.%d/24"
+IP_DEFAULT = 1
+TARGET_DEFAULT = 254
+
+LOGFILE_DEFAULT = "./ping.log"
+
 
 def _add(params)
   vlans = _v_to_l(params["v"])
@@ -15,6 +22,7 @@ def _add(params)
   _check_svi(params["b"])    
   for v in vlans do
     _create_svis(v)
+    _set_addr(v, params["a"])
   end
 
 end
@@ -62,10 +70,24 @@ def _create_svis(v)
     if $?.exitstatus != 0
       puts "Warning : failed to set linkup svi of vlan #{v}"
     end
-#    p "created " + v.to_s
   end
   
 end
+
+
+def _set_addr(v, ip_host)
+  if v.instance_of? Range
+    for one in v
+      _set_addr(one, ip_host)
+    end
+  else
+    %x[ip addr add #{SUBNET % [(v % 256), ip_host]} dev #{SVI_NAME}.#{v}]
+    if $?.exitstatus != 0
+      puts "Warning : failed to set ip address of svi #{v}"
+    end
+  end
+end
+
 
 def _del(params)
   
@@ -76,7 +98,7 @@ def _del(params)
   
   linkstat.each_line do |line|
     if mgs = line.match(/(svi\.\d+)/)
-      svis.push(mgs[0])
+      svis << mgs[0]
     end
   end
   svis.uniq!
@@ -97,20 +119,63 @@ def _del(params)
   
 end
 
-cmd = ARGV.shift
-params = ARGV.getopts("i:v:H:t:l:b:")
 
-if not params["b"]
-  params["b"] = BRIDGE_DEFAULT
+def _ping(params)
+  # fping -p 500 -t 2000 -l -Q 1 -s <target>
+  pid = Process.spawn("ping localhost", :out=>params["l"],
+                        :err=>params["l"])
+  
+  mon = Process.detach(pid)
+  
+  begin
+     p mon.value
+  rescue Interrupt => e
+    puts
+    puts "Notice : program exits due to [ctrl+c]"
+  end
 end
 
-if not SUBCMDS.include?(cmd)
+
+def _validate_opts(params, subcmd)
+  musts = SUBCMDS[subcmd]
+#  p musts
+  res = musts != "" ?
+    musts.each_char.map do |must| not params[must].nil? end :
+    [true]
+    
+  if not res.all?
+    puts "Error : some needed parameter are ignored"
+    exit(1)
+  end
+end
+
+cmd = ARGV.shift
+params = ARGV.getopts("v:b:a:t:l:T")
+
+params["a"] ||= IP_DEFAULT
+params["a"] = params["a"].to_i
+
+params["t"] ||= TARGET_DEFAULT
+params["t"] = params["t"].to_i
+
+params["b"] ||= BRIDGE_DEFAULT
+
+params["l"] ||= LOGFILE_DEFAULT
+params["l"].sub(/(?=\.\w+$)/, Time.now.strftime("_%Y%m%d_%H")) if params["T"]
+  
+#if not params["b"]
+#  params["b"] = BRIDGE_DEFAULT
+#end
+
+if not SUBCMDS.keys.include?(cmd)
   puts "Error : Invalid subcommand"
   exit(1)
 end
 
-cmd = self.method( ("_" + cmd).to_sym)
+#p params
+_validate_opts(params, cmd)
 
+cmd = self.method( ("_" + cmd).to_sym)
 cmd.call(params)
 
 
