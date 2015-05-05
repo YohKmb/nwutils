@@ -34,6 +34,10 @@ def _v_to_l(vlans)
   vlans = vlans.split(",")
   
   vlans.map! do |v| eval(v) end
+  vlans.map! do |v| v.instance_of?(Range) ? v.to_a : v end
+    
+  vlans.flatten!
+  vlans.sort!
 end
 
 
@@ -58,30 +62,28 @@ end
 
 def _create_svis(v)
 
-  if v.instance_of? Range
-    for one in v
-      _create_svis(one)
-    end
-  else
+#  if v.instance_of? Range
+#    for one in v
+#      _create_svis(one)
+#    end
+#  else
 
-    %x[ip netns add #{SVI_NAME}.#{v}]
+  %x[ip netns add #{SVI_NAME}.#{v}]
+  if $?.exitstatus != 0
+    puts "Warning : failed to netns of vlan #{v}"
+  else
+    %x[ip link add name #{SVI_NAME}.#{v} link #{SVI_NAME} type vlan id #{v}]
     if $?.exitstatus != 0
-      puts "Warning : failed to netns of vlan #{v}"
+      puts "Warning : failed to create svi of vlan #{v}"
+    end
+    %x[ip link set #{SVI_NAME}.#{v} netns #{SVI_NAME}.#{v}]
+    if $?.exitstatus != 0
+      puts "Warning : failed to move netns of #{SVI_NAME}.#{v}"
     else
-      %x[ip link add name #{SVI_NAME}.#{v} link #{SVI_NAME} type vlan id #{v}]
+      %x[ip netns exec #{SVI_NAME}.#{v} ip link set up dev #{SVI_NAME}.#{v}]
       if $?.exitstatus != 0
-        puts "Warning : failed to create svi of vlan #{v}"
+        puts "Warning : failed to set linkup svi of vlan #{v}"
       end
-      %x[ip link set #{SVI_NAME}.#{v} netns #{SVI_NAME}.#{v}]
-      if $?.exitstatus != 0
-        puts "Warning : failed to move netns of #{SVI_NAME}.#{v}"
-      else
-        %x[ip netns exec #{SVI_NAME}.#{v} ip link set up dev #{SVI_NAME}.#{v}]
-        if $?.exitstatus != 0
-          puts "Warning : failed to set linkup svi of vlan #{v}"
-        end
-      end
-      
     end
     
   end
@@ -90,28 +92,33 @@ end
 
 
 def _set_addr(v, ip_host, ip_gw)
-  if v.instance_of? Range
-    for one in v
-      _set_addr(one, ip_host, ip_gw)
-    end
-  else
-    %x[ip netns exec #{SVI_NAME}.#{v} ip addr add #{SUBNET % [(v % 256), ip_host]} dev #{SVI_NAME}.#{v}]
-    if $?.exitstatus != 0
-      puts "Warning : failed to set ip address of #{SVI_NAME}.#{v}"
-    end
-#    p "#{SUBNET % [(v % 256), ip_gw]}"
-    %x[ip netns exec #{SVI_NAME}.#{v} ip route add 0.0.0.0/0 via #{ (SUBNET % [(v % 256), ip_gw]).split("/").shift }]
-    if $?.exitstatus != 0
-      puts "Warning : failed to configure default route of #{SVI_NAME}.#{v}"
-    end
+#  if v.instance_of? Range
+#    for one in v
+#      _set_addr(one, ip_host, ip_gw)
+#    end
+#  else
+  %x[ip netns exec #{SVI_NAME}.#{v} ip addr add #{SUBNET % [(v % 256), ip_host]} dev #{SVI_NAME}.#{v}]
+#  %x[ip netns exec #{SVI_NAME}.#{v} ip addr add #{_v_to_addr(v, ip_host)} dev #{SVI_NAME}.#{v}]
+  if $?.exitstatus != 0
+    puts "Warning : failed to set ip address of #{SVI_NAME}.#{v}"
   end
+#    p "#{SUBNET % [(v % 256), ip_gw]}"
+  %x[ip netns exec #{SVI_NAME}.#{v} ip route add 0.0.0.0/0 via #{_v_to_addr(v, ip_gw)}]
+  if $?.exitstatus != 0
+    puts "Warning : failed to configure default route of #{SVI_NAME}.#{v}"
+  end
+
+end
+
+
+def _v_to_addr(vlan, ip)
+  "#{(SUBNET % [(vlan % 256), ip]).split("/").shift }"
 end
 
 
 def _del(params)
-  
+
   bridge = params["b"]
-    
 #  linkstat = %x[ip link show]
   linkstat = %x[ip netns list]
   svis = []
@@ -145,10 +152,13 @@ end
 
 
 def _ping(params)
+  map_targ = _build_targets(params)
+  p map_targ
+  
+  exit(0)
   # fping -p 500 -t 2000 -l -Q 1 -s <target>
   pid = Process.spawn("ping localhost", :out=>params["l"],
                         :err=>params["l"])
-  
   mon = Process.detach(pid)
   
   begin
@@ -159,6 +169,63 @@ def _ping(params)
   end
 end
 
+
+def _build_targets(params)
+
+  nsstat = %x[ip netns list]
+  nses = []
+  vlans = []
+  
+  nsstat.each_line do |line|
+    if mgs = line.match(/svi\.(\d+)/)
+      nses << mgs[0]
+      vlans << mgs[1].to_i
+    end
+  end
+
+  nses.uniq!
+  nses.sort!
+  vlans.uniq!
+  vlans.sort!
+  
+  if params["l3"]
+    if params["x"] and params["s"]
+      puts "Error : inconsistent options were passed"
+      exit(1)
+    else
+      vlans = params["s"].nil? ? vlans : _v_to_l(params["s"])
+      l_x = _v_to_l(params["x"]) if not params["x"].nil?
+      vlans -= l_x if not l_x.nil?
+      
+      Hash[nses.zip([vlans] * nses.length) ]
+    end
+      
+  else
+    Hash[nses.zip(vlans)]
+  end
+#  nsstat = %x[ip netns list]
+#  vlans = []
+#  
+#  nsstat.each_line do |line|
+#    if mgs = line.match(/svi\.(\d+)/)
+#      vlans << mgs[0].to_i
+#    end
+#  end
+#  vlans.uniq!
+#  is_excluded = true
+  
+#  l_x = []
+#  if params["l3"]
+#    if params["x"] and params["s"]
+#      puts "Error : inconsistent options were passed"
+#      exit(1)
+#    else
+##      is_excluded = params["x"] ? true : false
+#      l_x = _v_to_l(params["x"]) if not params["x"].nil?
+#    end
+#  end
+  
+end
 
 def _validate_opts(params, subcmd)
   musts = SUBCMDS[subcmd]
@@ -179,7 +246,7 @@ end
 ###
 
 cmd = ARGV.shift
-params = ARGV.getopts("v:b:a:t:l:T")
+params = ARGV.getopts("v:b:a:t:x:s:l:T", "l3")
 
 params["a"] ||= IP_DEFAULT
 params["a"] = params["a"].to_i
