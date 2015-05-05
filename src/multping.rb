@@ -8,6 +8,8 @@ SUBCMDS = {"add" => "va", "del" => "", "ping" => "tl"}
   
 BRIDGE_DEFAULT = "vbr0"
 SVI_NAME = "svi"
+
+EXECUTABLE = "fping"
   
 SUBNET = "192.168.%d.%d/24"
 IP_DEFAULT = 1
@@ -18,6 +20,7 @@ LOGFILE_DEFAULT = "./ping.log"
 
 
 def _add(params)
+  
   vlans = _v_to_l(params["v"])
   
   _check_svi(params["b"])    
@@ -30,6 +33,7 @@ end
 
 
 def _v_to_l(vlans)
+  
   vlans.gsub!("-", "..")
   vlans = vlans.split(",")
   
@@ -42,8 +46,9 @@ end
 
 
 def _check_svi(bridge)
+
   %x[ip link show #{SVI_NAME}]
-#  puts "Debug : " + $?.exitstatus.to_s
+
   if $?.exitstatus != 0
     puts "Notice : goint to create base svi"
     %x[ovs-vsctl add-port #{bridge} #{SVI_NAME} -- set interface #{SVI_NAME} type=internal]
@@ -61,12 +66,6 @@ end
 
 
 def _create_svis(v)
-
-#  if v.instance_of? Range
-#    for one in v
-#      _create_svis(one)
-#    end
-#  else
 
   %x[ip netns add #{SVI_NAME}.#{v}]
   if $?.exitstatus != 0
@@ -92,11 +91,7 @@ end
 
 
 def _set_addr(v, ip_host, ip_gw)
-#  if v.instance_of? Range
-#    for one in v
-#      _set_addr(one, ip_host, ip_gw)
-#    end
-#  else
+
   %x[ip netns exec #{SVI_NAME}.#{v} ip addr add #{SUBNET % [(v % 256), ip_host]} dev #{SVI_NAME}.#{v}]
 #  %x[ip netns exec #{SVI_NAME}.#{v} ip addr add #{_v_to_addr(v, ip_host)} dev #{SVI_NAME}.#{v}]
   if $?.exitstatus != 0
@@ -112,7 +107,9 @@ end
 
 
 def _v_to_addr(vlan, ip)
+  
   "#{(SUBNET % [(vlan % 256), ip]).split("/").shift }"
+
 end
 
 
@@ -152,14 +149,27 @@ end
 
 
 def _ping(params)
-  map_targ = _build_targets(params)
-  p map_targ
   
-  exit(0)
+  ping_bin = %x[which #{EXECUTABLE}].chop
+  if ping_bin.length == 0
+    puts "Error : could not find ping tool \"#{EXECUTABLE}\""
+    exit(1)
+  end
+  
+  map_targ = _build_targets(params)
+  
+  map_targ.each do |ns, vlans|
+    pid = Process.spawn("ping localhost")
+    mon = Process.detach(pid)
+  end
+  
+#  p map_targ
+#  exit(0)
+
   # fping -p 500 -t 2000 -l -Q 1 -s <target>
-  pid = Process.spawn("ping localhost", :out=>params["l"],
-                        :err=>params["l"])
-  mon = Process.detach(pid)
+#  pid = Process.spawn("ping localhost", :out=>params["l"],
+#                        :err=>params["l"])
+#  mon = Process.detach(pid)
   
   begin
      p mon.value
@@ -203,31 +213,12 @@ def _build_targets(params)
   else
     Hash[nses.zip(vlans)]
   end
-#  nsstat = %x[ip netns list]
-#  vlans = []
-#  
-#  nsstat.each_line do |line|
-#    if mgs = line.match(/svi\.(\d+)/)
-#      vlans << mgs[0].to_i
-#    end
-#  end
-#  vlans.uniq!
-#  is_excluded = true
-  
-#  l_x = []
-#  if params["l3"]
-#    if params["x"] and params["s"]
-#      puts "Error : inconsistent options were passed"
-#      exit(1)
-#    else
-##      is_excluded = params["x"] ? true : false
-#      l_x = _v_to_l(params["x"]) if not params["x"].nil?
-#    end
-#  end
   
 end
 
+
 def _validate_opts(params, subcmd)
+
   musts = SUBCMDS[subcmd]
 #  p musts
   res = musts != "" ?
@@ -238,6 +229,7 @@ def _validate_opts(params, subcmd)
     puts "Error : some needed parameter are ignored"
     exit(1)
   end
+
 end
 
 
@@ -262,9 +254,6 @@ params["b"] ||= BRIDGE_DEFAULT
 params["l"] ||= LOGFILE_DEFAULT
 params["l"].sub(/(?=\.\w+$)/, Time.now.strftime("_%Y%m%d_%H")) if params["T"]
   
-#if not params["b"]
-#  params["b"] = BRIDGE_DEFAULT
-#end
 
 if not SUBCMDS.keys.include?(cmd)
   puts "Error : Invalid subcommand"
