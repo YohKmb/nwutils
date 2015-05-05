@@ -23,7 +23,7 @@ def _add(params)
   _check_svi(params["b"])    
   for v in vlans do
     _create_svis(v)
-    _set_addr(v, params["a"])
+    _set_addr(v, params["a"], params["g"])
   end
 
 end
@@ -89,15 +89,20 @@ def _create_svis(v)
 end
 
 
-def _set_addr(v, ip_host)
+def _set_addr(v, ip_host, ip_gw)
   if v.instance_of? Range
     for one in v
-      _set_addr(one, ip_host)
+      _set_addr(one, ip_host, ip_gw)
     end
   else
     %x[ip netns exec #{SVI_NAME}.#{v} ip addr add #{SUBNET % [(v % 256), ip_host]} dev #{SVI_NAME}.#{v}]
     if $?.exitstatus != 0
       puts "Warning : failed to set ip address of #{SVI_NAME}.#{v}"
+    end
+#    p "#{SUBNET % [(v % 256), ip_gw]}"
+    %x[ip netns exec #{SVI_NAME}.#{v} ip route add 0.0.0.0/0 via #{ (SUBNET % [(v % 256), ip_gw]).split("/").shift }]
+    if $?.exitstatus != 0
+      puts "Warning : failed to configure default route of #{SVI_NAME}.#{v}"
     end
   end
 end
@@ -183,7 +188,7 @@ params["t"] ||= TARGET_DEFAULT
 params["t"] = params["t"].to_i
 
 params["g"] ||= GATEWAY_DEFAULT
-params["g"] = params["t"].to_i
+params["g"] = params["g"].to_i
 
 params["b"] ||= BRIDGE_DEFAULT
 
