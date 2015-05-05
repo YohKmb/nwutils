@@ -11,7 +11,8 @@ SVI_NAME = "svi"
   
 SUBNET = "192.168.%d.%d/24"
 IP_DEFAULT = 1
-TARGET_DEFAULT = 254
+GATEWAY_DEFAULT = 254
+TARGET_DEFAULT = 2
 
 LOGFILE_DEFAULT = "./ping.log"
 
@@ -62,14 +63,27 @@ def _create_svis(v)
       _create_svis(one)
     end
   else
-    %x[ip link add name #{SVI_NAME}.#{v} link #{SVI_NAME} type vlan id #{v}]
+
+    %x[ip netns add #{SVI_NAME}.#{v}]
     if $?.exitstatus != 0
-      puts "Warning : failed to create svi of vlan #{v}"
+      puts "Warning : failed to netns of vlan #{v}"
+    else
+      %x[ip link add name #{SVI_NAME}.#{v} link #{SVI_NAME} type vlan id #{v}]
+      if $?.exitstatus != 0
+        puts "Warning : failed to create svi of vlan #{v}"
+      end
+      %x[ip link set #{SVI_NAME}.#{v} netns #{SVI_NAME}.#{v}]
+      if $?.exitstatus != 0
+        puts "Warning : failed to move netns of #{SVI_NAME}.#{v}"
+      else
+        %x[ip netns exec #{SVI_NAME}.#{v} ip link set up dev #{SVI_NAME}.#{v}]
+        if $?.exitstatus != 0
+          puts "Warning : failed to set linkup svi of vlan #{v}"
+        end
+      end
+      
     end
-    %x[ip link set up dev #{SVI_NAME}.#{v}]
-    if $?.exitstatus != 0
-      puts "Warning : failed to set linkup svi of vlan #{v}"
-    end
+    
   end
   
 end
@@ -81,9 +95,9 @@ def _set_addr(v, ip_host)
       _set_addr(one, ip_host)
     end
   else
-    %x[ip addr add #{SUBNET % [(v % 256), ip_host]} dev #{SVI_NAME}.#{v}]
+    %x[ip netns exec #{SVI_NAME}.#{v} ip addr add #{SUBNET % [(v % 256), ip_host]} dev #{SVI_NAME}.#{v}]
     if $?.exitstatus != 0
-      puts "Warning : failed to set ip address of svi #{v}"
+      puts "Warning : failed to set ip address of #{SVI_NAME}.#{v}"
     end
   end
 end
@@ -93,7 +107,8 @@ def _del(params)
   
   bridge = params["b"]
     
-  linkstat = %x[ip link show]
+#  linkstat = %x[ip link show]
+  linkstat = %x[ip netns list]
   svis = []
   
   linkstat.each_line do |line|
@@ -104,9 +119,13 @@ def _del(params)
   svis.uniq!
 
   for svi in svis do
-    %x[ip link delete dev #{svi}]
+    %x[ip netns exec #{svi} ip link delete dev #{svi}]
     if $?.exitstatus != 0
       puts "Warning : failed to delete svi of vlan #{v}"
+    end
+    %x[ip netns delete #{svi}]
+    if $?.exitstatus != 0
+      puts "Warning : failed to delete netns of #{svi}"
     end
   end
   
@@ -149,6 +168,11 @@ def _validate_opts(params, subcmd)
   end
 end
 
+
+### 
+### main process starts here !
+###
+
 cmd = ARGV.shift
 params = ARGV.getopts("v:b:a:t:l:T")
 
@@ -157,6 +181,9 @@ params["a"] = params["a"].to_i
 
 params["t"] ||= TARGET_DEFAULT
 params["t"] = params["t"].to_i
+
+params["g"] ||= GATEWAY_DEFAULT
+params["g"] = params["t"].to_i
 
 params["b"] ||= BRIDGE_DEFAULT
 
