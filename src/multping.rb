@@ -95,11 +95,10 @@ end
 def _set_addr(v, ip_host, ip_gw)
 
   %x[ip netns exec #{SVI_NAME}.#{v} ip addr add #{SUBNET % [(16 + v / 256), (v % 256), ip_host]} dev #{SVI_NAME}.#{v}]
-#  %x[ip netns exec #{SVI_NAME}.#{v} ip addr add #{_v_to_addr(v, ip_host)} dev #{SVI_NAME}.#{v}]
   if $?.exitstatus != 0
     puts "Warning : failed to set ip address of #{SVI_NAME}.#{v}"
   end
-#    p "#{SUBNET % [(v % 256), ip_gw]}"
+  
   %x[ip netns exec #{SVI_NAME}.#{v} ip route add 0.0.0.0/0 via #{_v_to_addr(v, ip_gw)}]
   if $?.exitstatus != 0
     puts "Warning : failed to configure default route of #{SVI_NAME}.#{v}"
@@ -171,8 +170,8 @@ def _ping(params)
   
   map_targ = _build_targets(params)
   log_fds = []
-#  thrds = []
   
+#  p map_targ
   map_targ.each do |ns, vlans|
     
     log_fd = File::open("./#{ns}.log", "w")
@@ -239,10 +238,12 @@ def _build_targets(params)
       l_x = _v_to_l(params["x"]) if not params["x"].nil?
       vlans -= l_x if not l_x.nil?
       
+      vlans.map! do |v| _v_to_addr(v, params["t"]) end
       Hash[nses.zip([vlans] * nses.length) ]
     end
       
   else
+    vlans.map! do |v| _v_to_addr(v, params["t"]) end
     Hash[nses.zip(vlans)]
   end
   
