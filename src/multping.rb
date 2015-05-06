@@ -171,52 +171,42 @@ def _ping(params)
   
   map_targ = _build_targets(params)
   log_fds = []
-  thrds = []
+#  thrds = []
   
   map_targ.each do |ns, vlans|
     
     log_fd = File::open("./#{ns}.log", "w")
     log_fds << log_fd
     
-    t = Thread.new do
+    Thread.new do
       Open3::popen2e("ip", "netns", "exec", "#{ns}",
           ping_bin, "-s", "-l", "localhost") do |i,oe,t|
-
-        oe.each do |line|
-          log_fd.puts(line)
-#          puts line
+        
+        begin
+          oe.each do |line|
+            log_fd.puts(line)
+          end
+        ensure
+          log_fd.print(oe.read)
         end
+        
       end
     end
     
-    thrds << t
-#    pid = Process.spawn("ping localhost")
-#    mon = Process.detach(pid)
   end
   
   begin
-    for t in thrds do
-      t.join
-    end
+    for t in Thread::list do t.join unless t.equal? Thread::current end
     
   rescue Interrupt => e
     puts
     puts "Notice : program exits due to [ctrl+c]"
-    
-    for t in thrds do
-      t.kill
-#      t.join
-    end
+    for t in Thread::list do t.kill unless t.equal? Thread::current end
+
   ensure
-    for t in thrds do
-#      p "Waiting to join #{t.to_s}"
-      t.join
-    end
-    
-    for fd in log_fds do
-      fd.close
-    end
-  
+    for t in Thread::list do t.kill unless t.equal? Thread::current end
+    for t in Thread::list do t.join unless t.equal? Thread::current end
+      
   end
 
 end
