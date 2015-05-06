@@ -1,5 +1,9 @@
 #! /usr/bin/env ruby
 
+#
+# Copyright 2015 Yoh Kamibayashi
+#
+
 
 require "optparse"
 require "open3"
@@ -8,6 +12,7 @@ require "open3"
 SUBCMDS = {"add" => "va", "del" => "", "ping" => "tl"}
   
 BRIDGE_DEFAULT = "vbr0"
+#EXTERNAL_IFACE = "eth1"
 SVI_NAME = "svi"
 
 EXECUTABLE = "fping"
