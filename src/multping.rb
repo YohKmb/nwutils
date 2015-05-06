@@ -2,6 +2,7 @@
 
 
 require "optparse"
+require "open3"
 
 
 SUBCMDS = {"add" => "va", "del" => "", "ping" => "tl"}
@@ -11,12 +12,13 @@ SVI_NAME = "svi"
 
 EXECUTABLE = "fping"
   
-SUBNET = "192.168.%d.%d/24"
+#SUBNET = "192.168.%d.%d/24"
+SUBNET = "172.%d.%d.%d/24"
 IP_DEFAULT = 1
 GATEWAY_DEFAULT = 254
 TARGET_DEFAULT = 2
 
-LOGFILE_DEFAULT = "./ping.log"
+LOGDIR_DEFAULT = "./pinglog.d"
 
 
 def _add(params)
@@ -92,7 +94,7 @@ end
 
 def _set_addr(v, ip_host, ip_gw)
 
-  %x[ip netns exec #{SVI_NAME}.#{v} ip addr add #{SUBNET % [(v % 256), ip_host]} dev #{SVI_NAME}.#{v}]
+  %x[ip netns exec #{SVI_NAME}.#{v} ip addr add #{SUBNET % [(16 + v / 256), (v % 256), ip_host]} dev #{SVI_NAME}.#{v}]
 #  %x[ip netns exec #{SVI_NAME}.#{v} ip addr add #{_v_to_addr(v, ip_host)} dev #{SVI_NAME}.#{v}]
   if $?.exitstatus != 0
     puts "Warning : failed to set ip address of #{SVI_NAME}.#{v}"
@@ -108,7 +110,7 @@ end
 
 def _v_to_addr(vlan, ip)
   
-  "#{(SUBNET % [(vlan % 256), ip]).split("/").shift }"
+  "#{(SUBNET % [(16 + vlan / 256), (vlan % 256), ip]).split("/").shift }"
 
 end
 
@@ -156,27 +158,67 @@ def _ping(params)
     exit(1)
   end
   
-  map_targ = _build_targets(params)
-  
-  map_targ.each do |ns, vlans|
-    pid = Process.spawn("ping localhost")
-    mon = Process.detach(pid)
+  begin
+    Dir::mkdir(params["l"])
+    Dir::chdir(params["l"])
+      
+  rescue Errno::ENOENT => e
+    puts "Error : failure occurred related to a logging directory"
+    puts e.message
+    exit(1)
+    
   end
   
-#  p map_targ
-#  exit(0)
+  map_targ = _build_targets(params)
+  log_fds = []
+  thrds = []
+  
+  map_targ.each do |ns, vlans|
+    
+    log_fd = File::open("./#{ns}.log", "w")
+    log_fds << log_fd
+    
+    t = Thread.new do
+      Open3::popen2e("ip", "netns", "exec", "#{ns}",
+          ping_bin, "-s", "-l", "localhost") do |i,oe,t|
 
-  # fping -p 500 -t 2000 -l -Q 1 -s <target>
-#  pid = Process.spawn("ping localhost", :out=>params["l"],
-#                        :err=>params["l"])
-#  mon = Process.detach(pid)
+        oe.each do |line|
+          log_fd.puts(line)
+#          puts line
+        end
+      end
+    end
+    
+    thrds << t
+#    pid = Process.spawn("ping localhost")
+#    mon = Process.detach(pid)
+  end
   
   begin
-     p mon.value
+    for t in thrds do
+      t.join
+    end
+    
   rescue Interrupt => e
     puts
     puts "Notice : program exits due to [ctrl+c]"
+    
+    for t in thrds do
+      t.kill
+#      t.join
+    end
+  ensure
+    for t in thrds do
+#      p "Waiting to join #{t.to_s}"
+      t.join
+    end
+    
+    for fd in log_fds do
+      fd.close
+    end
+  
   end
+
 end
 
 
@@ -251,8 +293,8 @@ params["g"] = params["g"].to_i
 
 params["b"] ||= BRIDGE_DEFAULT
 
-params["l"] ||= LOGFILE_DEFAULT
-params["l"].sub(/(?=\.\w+$)/, Time.now.strftime("_%Y%m%d_%H")) if params["T"]
+params["l"] ||= LOGDIR_DEFAULT
+params["l"].sub!(/(?=\.\w+$)|(?=$)/, Time.now.strftime("_%Y%m%d_%H%M%S")) if params["T"]
   
 
 if not SUBCMDS.keys.include?(cmd)
