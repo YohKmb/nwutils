@@ -1,8 +1,8 @@
 #! /usr/bin/env ruby
 
-#
-# Copyright 2015 Yoh Kamibayashi
-#
+##
+##  Copyright 2015 Yoh Kamibayashi
+##
 
 
 require "optparse"
@@ -57,17 +57,17 @@ def _check_svi(bridge)
   %x[ip link show #{SVI_NAME}]
 
   if $?.exitstatus != 0
-    puts "Notice : goint to create base svi"
+    puts "Notice : Goint to create base svi"
     %x[ovs-vsctl add-port #{bridge} #{SVI_NAME} -- set interface #{SVI_NAME} type=internal]
     if $?.exitstatus != 0
-      puts "Error : failed to create base svi interface"
+      puts "Error : Failed to create base svi interface"
       exit(1)
     end
   end
   
-  %x[ip link set up dev #{SVI_NAME} &> /dev/null]
+  %x[ip link set up dev #{SVI_NAME}]
   if $?.exitstatus != 0
-    puts "Warning : failed to set svi linkup"
+    puts "Warning : Failed to set svi linkup"
   end
 end
 
@@ -76,19 +76,19 @@ def _create_svis(v)
 
   %x[ip netns add #{SVI_NAME}.#{v}]
   if $?.exitstatus != 0
-    puts "Warning : failed to netns of vlan #{v}"
+    puts "Warning : Failed to netns of vlan #{v}"
   else
     %x[ip link add name #{SVI_NAME}.#{v} link #{SVI_NAME} type vlan id #{v}]
     if $?.exitstatus != 0
-      puts "Warning : failed to create svi of vlan #{v}"
+      puts "Warning : Failed to create svi of vlan #{v}"
     end
     %x[ip link set #{SVI_NAME}.#{v} netns #{SVI_NAME}.#{v}]
     if $?.exitstatus != 0
-      puts "Warning : failed to move netns of #{SVI_NAME}.#{v}"
+      puts "Warning : Failed to move netns of #{SVI_NAME}.#{v}"
     else
       %x[ip netns exec #{SVI_NAME}.#{v} ip link set up dev #{SVI_NAME}.#{v}]
       if $?.exitstatus != 0
-        puts "Warning : failed to set linkup svi of vlan #{v}"
+        puts "Warning : Failed to set linkup svi of vlan #{v}"
       end
     end
     
@@ -101,12 +101,12 @@ def _set_addr(v, ip_host, ip_gw)
 
   %x[ip netns exec #{SVI_NAME}.#{v} ip addr add #{SUBNET % [(16 + v / 256), (v % 256), ip_host]} dev #{SVI_NAME}.#{v}]
   if $?.exitstatus != 0
-    puts "Warning : failed to set ip address of #{SVI_NAME}.#{v}"
+    puts "Warning : Failed to set ip address of #{SVI_NAME}.#{v}"
   end
   
   %x[ip netns exec #{SVI_NAME}.#{v} ip route add 0.0.0.0/0 via #{_v_to_addr(v, ip_gw)}]
   if $?.exitstatus != 0
-    puts "Warning : failed to configure default route of #{SVI_NAME}.#{v}"
+    puts "Warning : Failed to configure default route of #{SVI_NAME}.#{v}"
   end
 
 end
@@ -136,20 +136,20 @@ def _del(params)
   for svi in svis do
     %x[ip netns exec #{svi} ip link delete dev #{svi}]
     if $?.exitstatus != 0
-      puts "Warning : failed to delete svi of vlan #{v}"
+      puts "Warning : Failed to delete svi of vlan #{v}"
     end
     %x[ip netns delete #{svi}]
     if $?.exitstatus != 0
-      puts "Warning : failed to delete netns of #{svi}"
+      puts "Warning : Failed to delete netns of #{svi}"
     end
   end
   
   %x[ovs-vsctl del-port #{bridge} #{SVI_NAME}]
   if $?.exitstatus != 0
-    puts "Error : failed to delete base svi interface"
+    puts "Error : Failed to delete base svi interface"
     exit(1)
   end
-  puts "Success : all svis got deleted cleanly"
+  puts "Success : All svis got deleted cleanly"
   
 end
 
@@ -158,7 +158,7 @@ def _ping(params)
   
   ping_bin = %x[which #{EXECUTABLE}].chop
   if ping_bin.length == 0
-    puts "Error : could not find ping tool \"#{EXECUTABLE}\""
+    puts "Error : Could not find ping tool \"#{EXECUTABLE}\""
     exit(1)
   end
   
@@ -167,7 +167,7 @@ def _ping(params)
     Dir::chdir(params["l"])
       
   rescue Errno::ENOENT => e
-    puts "Error : failure occurred related to a logging directory"
+    puts "Error : Failure occurred related to a logging directory"
     puts e.message
     exit(1)
     
@@ -182,7 +182,7 @@ def _ping(params)
     log_fd = File::open("./#{ns}.log", "w")
     log_fds << log_fd
     
-    Thread.new do
+    Thread::new do
       # fping -p 100 -t 1000 -l -Q 1 -s
       Open3::popen2e("ip", "netns", "exec", "#{ns}",
           ping_bin, "-s", "-l", "-Q 1", "-t 1000", "-p 100",
@@ -206,7 +206,7 @@ def _ping(params)
     
   rescue Interrupt => e
     puts
-    puts "Notice : program exits due to [ctrl+c]"
+    puts "Notice : Program exits due to [ctrl+c]"
     for t in Thread::list do t.kill unless t.equal? Thread::current end
 
   ensure
@@ -238,7 +238,7 @@ def _build_targets(params)
   
   if params["l3"]
     if params["x"] and params["s"]
-      puts "Error : inconsistent options were passed"
+      puts "Error : Inconsistent options were passed"
       exit(1)
     else
       vlans = params["s"].nil? ? vlans : _v_to_l(params["s"])
@@ -266,7 +266,7 @@ def _validate_opts(params, subcmd)
     [true]
     
   if not res.all?
-    puts "Error : some needed parameter are ignored"
+    puts "Error : Some needed parameter are ignored"
     exit(1)
   end
 
@@ -278,7 +278,7 @@ end
 ###
 
 cmd = ARGV.shift
-params = ARGV.getopts("v:b:a:t:x:s:l:T", "l3")
+params = ARGV.getopts("v:b:a:t:x:s:l:T", "l3", "no-log")
 
 params["a"] ||= IP_DEFAULT
 params["a"] = params["a"].to_i
