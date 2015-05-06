@@ -9,7 +9,38 @@ require "optparse"
 require "open3"
 
 
-SUBCMDS = {"add" => "va", "del" => "", "ping" => "tl"}
+USAGE = <<EOT
+  usage : #{__FILE__} command [command_opts] [command_args]
+    
+    [commands]
+      add : create svi(s) for each vlans specified with "-v" option
+            also assign ip-addr and configure default route
+            
+      del : delete existing svi(s)
+      
+      ping : start ping and save their logs
+             default ping mode is l2(layer2) but could be switched with "--l3" switch option
+      
+      help : displays this "usage"       
+  
+    [command_options]
+      -v vlans... : vlans you want to add in list format (add command)
+      -b bridge_name : bridge name to which svi(s) would be attached (add command)
+      -a assigned_addr : ip address of host section that would be assigned to svi(s) (add command)
+      -t target_addr : ip address of host section to which ping is fired (ping command)
+      -x exclude_vlans... : exclude specified vlans from l3 ping targets (ping command, l3 mode)
+      -s specified_vlans... : specify vlans mannually to which ping is fired (ping command, l3 mode)
+      -l log_dir : a name of director in which ping logs would be saved (ping command)
+      
+      -T : switch that decide whether time-stamp are appeded to log_dir's name, defalt=false (ping command)
+      --l3 : switch the mode of pinging from l2 ping to l3 ping
+
+EOT
+# params = ARGV.getopts("v:b:a:t:x:s:l:T", "l3", "no-log")
+
+Version = "v1.0"
+
+SUBCMDS = {"add" => "va", "del" => "", "ping" => "tl", "help" => ""}
   
 BRIDGE_DEFAULT = "vbr0"
 #EXTERNAL_IFACE = "eth1"
@@ -267,9 +298,19 @@ def _validate_opts(params, subcmd)
     
   if not res.all?
     puts "Error : Some needed parameter are ignored"
-    exit(1)
+    puts
+    _help(1)
+#    exit(1)
   end
 
+end
+
+
+def _help(exit_status)
+
+  print USAGE
+  exit(exit_status)
+  
 end
 
 
@@ -297,10 +338,13 @@ params["l"].sub!(/(?=\.\w+$)|(?=$)/, Time.now.strftime("_%Y%m%d_%H%M%S")) if par
 
 if not SUBCMDS.keys.include?(cmd)
   puts "Error : Invalid subcommand"
-  exit(1)
+  puts
+#  exit(1)
+  _help(1)
 end
 
 #p params
+_help(0) if cmd == "help"
 _validate_opts(params, cmd)
 
 cmd = self.method( ("_" + cmd).to_sym)
