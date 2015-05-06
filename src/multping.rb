@@ -172,14 +172,16 @@ def _ping(params)
   log_fds = []
   
 #  p map_targ
-  map_targ.each do |ns, vlans|
+  map_targ.each do |ns, targs|
     
     log_fd = File::open("./#{ns}.log", "w")
     log_fds << log_fd
     
     Thread.new do
+      # fping -p 100 -t 1000 -l -Q 1 -s
       Open3::popen2e("ip", "netns", "exec", "#{ns}",
-          ping_bin, "-s", "-l", "localhost") do |i,oe,t|
+          ping_bin, "-s", "-l", "-Q 1", "-t 1000", "-p 100",
+          targs.join(" ") ) do |i,oe,t|
         
         begin
           oe.each do |line|
