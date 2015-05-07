@@ -212,6 +212,7 @@ def _ping(params)
     f_targ = File::open(CACHE_TARGETS, "w")
     map_targ[:common].each do |targ|
       f_targ.puts(targ)
+      p targ
     end
     f_targ.close
   end
@@ -219,11 +220,14 @@ def _ping(params)
 #  p map_targ
   map_targ.each_key do |ns|
     
+    next if ns.equal?(:common)
+      
     log_fd = File::open("./#{ns}.log", "w")
     log_fds << log_fd
     
     cmds = ["ip", "netns", "exec", "#{ns}", ping_bin, "-s", "-l"]
-    cmds += params["l3"] ? ["-f #{CACHE_TARGETS}"] : [map_targ[ns]]
+    cmds += params["l3"] ? ["-f" ,"#{CACHE_TARGETS}"] : [map_targ[ns]]
+    p cmds
 #    if params["l3"]
 #      f_targ = File::open("./.targs", "w")
 #      targs.each do |targ|
@@ -243,6 +247,7 @@ def _ping(params)
           end
         ensure
           log_fd.print(oe.read)
+          log_fd.close
         end
         
       end
@@ -304,8 +309,11 @@ def _build_targets(params)
       vlans -= l_x if not l_x.nil?
       
       vlans.map! do |v| _v_to_addr(v, params["t"]) end
-      Hash[:common] = vlans
-#      Hash[nses.zip([vlans] * nses.length) ]
+#      {:common => vlans}
+      ret = Hash[nses.zip([] * nses.length) ]
+      ret[:common] = vlans
+      ret
+#      Hash[nses.zip([vlans] * nses.length) ]      
     end
       
   else
