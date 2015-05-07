@@ -217,7 +217,6 @@ def _ping(params)
     f_targ.close
   end
   
-#  p map_targ
   map_targ.each_key do |ns|
     
     next if ns.equal?(:common)
@@ -227,15 +226,7 @@ def _ping(params)
     
     cmds = ["ip", "netns", "exec", "#{ns}", ping_bin, "-s", "-l"]
     cmds += params["l3"] ? ["-f" ,"#{CACHE_TARGETS}"] : [map_targ[ns]]
-    p cmds
-#    if params["l3"]
-#      f_targ = File::open("./.targs", "w")
-#      targs.each do |targ|
-#        f_targ.puts(targ)
-#      end
-#      f_targ.close
-#    end
-#    targs = targs.instance_of?(Array) ? targs.join(" ") : targs
+#    p cmds
     
     Thread::new do
       # fping -p 100 -t 1000 -l -Q 1 -s
@@ -294,10 +285,8 @@ def _build_targets(params)
 
   nses.uniq!
   nses.sort!
-#  p nses
   vlans.uniq!
   vlans.sort!
-#  p vlans
   
   if params["l3"]
     if params["x"] and params["s"]
@@ -327,7 +316,7 @@ end
 def _validate_opts(params, subcmd)
 
   musts = SUBCMDS[subcmd]
-#  p musts
+
   res = musts != "" ?
     musts.each_char.map do |must| not params[must].nil? end :
     [true]
@@ -336,7 +325,6 @@ def _validate_opts(params, subcmd)
     puts "Error : Some needed parameter are ignored"
     puts
     _help(1)
-#    exit(1)
   end
 
 end
@@ -351,7 +339,7 @@ end
 
 
 ### 
-### main process starts here !
+### actual processing starts from here !
 ###
 
 cmd = ARGV.shift
@@ -375,7 +363,6 @@ params["l"].sub!(/(?=\.\w+$)|(?=$)/, Time.now.strftime("_%Y%m%d_%H%M%S")) if par
 if not SUBCMDS.keys.include?(cmd)
   puts "Error : Invalid subcommand"
   puts
-#  exit(1)
   _help(1)
 end
 
