@@ -261,7 +261,14 @@ def _ping(params)
   ensure
     for t in Thread::list do t.kill unless t.equal? Thread::current end
     for t in Thread::list do t.join unless t.equal? Thread::current end
-      
+    
+    begin
+      File::delete(CACHE_TARGETS) if params["l3"]
+    rescue Errno::ENOENT => e
+      puts "Warning : Failed to delete target-cache file"
+      puts e.message
+    end
+    
   end
 
 end
