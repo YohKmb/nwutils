@@ -213,11 +213,13 @@ def _ping(params)
     log_fd = File::open("./#{ns}.log", "w")
     log_fds << log_fd
     
+    targs = targs.instance_of?(Array) ? targs.join(" ") : targs
+    
     Thread::new do
       # fping -p 100 -t 1000 -l -Q 1 -s
       Open3::popen2e("ip", "netns", "exec", "#{ns}",
           ping_bin, "-s", "-l", "-Q 1", "-t 1000", "-p 100",
-          targs.join(" ") ) do |i,oe,t|
+          targs ) do |i,oe,t|
         
         begin
           oe.each do |line|
@@ -264,8 +266,10 @@ def _build_targets(params)
 
   nses.uniq!
   nses.sort!
+#  p nses
   vlans.uniq!
   vlans.sort!
+#  p vlans
   
   if params["l3"]
     if params["x"] and params["s"]
