@@ -55,6 +55,7 @@ GATEWAY_DEFAULT = 254
 TARGET_DEFAULT = 2
 
 LOGDIR_DEFAULT = "./pinglog.d"
+CACHE_TARGETS = "./.targs"
 
 
 def _add(params)
@@ -206,20 +207,35 @@ def _ping(params)
   
   map_targ = _build_targets(params)
   log_fds = []
+    
+  if params["l3"]
+    f_targ = File::open(CACHE_TARGETS, "w")
+    map_targ[:common].each do |targ|
+      f_targ.puts(targ)
+    end
+    f_targ.close
+  end
   
 #  p map_targ
-  map_targ.each do |ns, targs|
+  map_targ.each_key do |ns|
     
     log_fd = File::open("./#{ns}.log", "w")
     log_fds << log_fd
     
-    targs = targs.instance_of?(Array) ? targs.join(" ") : targs
+    cmds = ["ip", "netns", "exec", "#{ns}", ping_bin, "-s", "-l"]
+    cmds += params["l3"] ? ["-f #{CACHE_TARGETS}"] : [map_targ[ns]]
+#    if params["l3"]
+#      f_targ = File::open("./.targs", "w")
+#      targs.each do |targ|
+#        f_targ.puts(targ)
+#      end
+#      f_targ.close
+#    end
+#    targs = targs.instance_of?(Array) ? targs.join(" ") : targs
     
     Thread::new do
       # fping -p 100 -t 1000 -l -Q 1 -s
-      Open3::popen2e("ip", "netns", "exec", "#{ns}",
-          ping_bin, "-s", "-l", "-Q 1", "-t 1000", "-p 100",
-          targs ) do |i,oe,t|
+      Open3::popen2e(*cmds) do |i,oe,t|
         
         begin
           oe.each do |line|
@@ -281,7 +297,8 @@ def _build_targets(params)
       vlans -= l_x if not l_x.nil?
       
       vlans.map! do |v| _v_to_addr(v, params["t"]) end
-      Hash[nses.zip([vlans] * nses.length) ]
+      Hash[:common] = vlans
+#      Hash[nses.zip([vlans] * nses.length) ]
     end
       
   else
