@@ -16,6 +16,7 @@ SUBCMDS = {"add" => "va", "del" => "", "ping" => "tl", "help" => ""}
 BRIDGE_DEFAULT = "vbr0"
 #EXTERNAL_IFACE = "eth1"
 SVI_NAME = "svi"
+LOOPBACK_NAME = "lo"
 
 EXECUTABLE = "fping"
   
@@ -127,6 +128,10 @@ def _create_svis(v)
       %x[ip netns exec #{SVI_NAME}.#{v} ip link set up dev #{SVI_NAME}.#{v}]
       if $?.exitstatus != 0
         puts "Warning : Failed to set linkup svi of vlan #{v}"
+      end
+      %x[ip netns exec #{SVI_NAME}.#{v} ip link set up dev #{LOOPBACK_NAME}]
+      if $?.exitstatus != 0
+        puts "Warning : Failed to set linkup loopback interface of vlan #{v}"
       end
     end
     
