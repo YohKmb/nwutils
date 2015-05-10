@@ -6,16 +6,19 @@
 
 require "optparse"
 
-require "net/http"
+require "net/https"
 require "json"
 
 
 PARAMS_AUTH = ["user", "passwd"]
 
-params = ARGV.getopts("f:o:u:p:T")
+params = ARGV.getopts("f:o:u:p:Ts", "port")
 runcmds = STDIN.read.split("\n")
 
 out_form = params["T"] ? "text" : "json"
+
+proto = params["s"] ? "https" : "http"
+# klass = Net::HTTPS : Net::HTTP
 
 if params["f"]
 
@@ -61,21 +64,44 @@ jsdata = {
 # p targets
 targets.each do |host, auth|
 
-  uri = URI("http://#{host}/command-api")
+  host += ":" + params["port"] if params["port"]
+  uri = URI("#{proto}://#{host}/command-api" )
 
   req = Net::HTTP::Post.new(uri.path)
   req.basic_auth(auth["user"], auth["passwd"])
   req.body = jsdata.to_json
 
-  res = Net::HTTP.start(uri.host, uri.port) do |http|
-    http.request(req)
+  begin
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true if params["s"]
+    http.verify_mode = OpenSSL::SSL::VERIFY_NONE if params["s"]
+
+    http.start
+    res = http.request(req)
+
+  rescue Exception => e
+    puts e.class
+    puts "Error : Http connection failed"
+    exit(1)
   end
 
-  puts "###########################"
+  if not res
+    puts "Warning : No response came from #{host}"
+    next
+  end
+
+  jsres = JSON.load(res.body)["result"]
+  jsres = jsres.each.map do |r| r["output"] end if params["T"]
+  jsres = runcmds.zip(jsres)
+
+  puts "#### BEGIN #{host} ###########################"
   puts
-  p JSON::load(res.body)
+  # p res
+  # p JSON::load(res.body) if res
+  p jsres
   puts
-  puts "###########################"
+  puts "######################## END #{host} #########"
+  puts "\n" * 2
 
 end
 
