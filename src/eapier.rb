@@ -22,7 +22,8 @@ class Eapier
     @runcmds = runcmds
     # @targets = targets
     @proto = is_https ? "https" : "http"
-    @is_text = is_text
+    # @is_text = is_text
+    @Formatter = is_text ? LogTextFormatter : LogJsonFormatter
 
     if filename_targets
       begin
@@ -130,8 +131,8 @@ class Eapier
 
     @targets.each do |host, auth|
 
-      puts "#### BEGIN #{host} #############################"
-      puts
+      # puts "#### BEGIN #{host} #############################"
+      # puts
       # host += ":" + auth["port"]
       # uri = URI("#{@proto}://#{host}/command-api" )
       uri = self._get_uri(host, auth)
@@ -157,31 +158,116 @@ class Eapier
       #
       res = self._send_and_receive(uri, req)
       if res.nil?
-        puts "Warning : Skip #{host} and go to the next target host"
-        puts "########################## END #{host} #########"
-        puts "\n" * 2
-        
+        # puts "Warning : Skip #{host} and go to the next target host"
+        # puts "########################## END #{host} #########"
+        # puts "\n" * 2
+        @Formatter::alert(host, "Warning : Skip #{host} and go to the next target host")
+
         next
       end
 
-      jsres = JSON.load(res.body)["result"]
-      jsres = jsres.each.map do |r| r["output"] end if @is_text
-      jsres = @runcmds.zip(jsres)
+      @Formatter::format(host, @runcmds, res)
+      # jsres = JSON.load(res.body)["result"]
+      # jsres = jsres.each.map do |r| r["output"] end if @is_text
+      # jsres = @runcmds.zip(jsres)
 
       # puts "#### BEGIN #{host} #############################"
       # puts
       # p res
       # p JSON::load(res.body) if res
-      p jsres
-      puts
-      puts "########################## END #{host} #########"
-      puts "\n" * 2
+      # p jsres
+      # puts
+      # puts "########################## END #{host} #########"
+      # puts "\n" * 2
 
     end
   end
 
 end
 
+
+class LogFormatter
+
+  # def initialize(host)
+  #   @host = host
+  # end
+
+  class << self
+
+    def format(host, runcmds, htres)
+      _print_prelude(host)
+      _print_content(runcmds, htres)
+      _print_finale(host)
+    end
+
+    def alert(host, msg)
+      _print_prelude(host)
+      puts msg
+      _print_finale(host)
+    end
+
+    def _print_content(runcmds, htres)
+      nil
+    end
+
+    def _print_prelude(host)
+      puts "###### BEGIN #{host} ##########################################################"
+      puts
+    end
+
+    def _print_finale(host)
+      puts
+      puts "############################################### END #{host} ###################"
+      puts "\n" * 2
+    end
+
+  end
+
+end
+
+
+class LogTextFormatter < LogFormatter
+
+  class << self
+    def _print_content(runcmds, htres)
+      jsres = JSON.load(htres.body)["result"]
+      jsres = jsres.each.map do |r| r["output"] end
+      jsres = runcmds.zip(jsres)
+
+      jsres.each do |cmd, out|
+        puts "[------------------- #{cmd} --------------------------]"
+        puts
+        puts out
+        puts
+        puts "[--------------------#{'-' * cmd.length}---------------------------]"
+        puts
+      end
+    end
+  end
+
+end
+
+
+class LogJsonFormatter < LogFormatter
+
+  class << self
+    def _print_content(runcmds, htres)
+      jsres = JSON.load(htres.body)["result"]
+      # jsres = jsres.each.map do |r| r["output"] end
+      jsres = runcmds.zip(jsres)
+
+      jsres.each do |cmd, out|
+        puts "[------------------- #{cmd} --------------------------]"
+        puts
+        puts( JSON.pretty_generate(out) )
+        puts
+        puts "[--------------------#{'-' * cmd.length}---------------------------]"
+        puts
+      end
+    end
+  end
+
+end
 
 params = ARGV.getopts("f:o:u:p:Ts", "port")
 runcmds = STDIN.read.split("\n")
