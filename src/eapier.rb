@@ -239,6 +239,6 @@ params = ARGV.getopts("f:o:u:p:Tsec", "port")
 runcmds = STDIN.read.split("\n")
 
 eapier = Eapier.new(runcmds, params["f"], params["u"], params["p"], params["s"],
-                    params["port"], params["T"], params["e"], params["c"] *ARGV)
+                    params["port"], params["T"], params["e"], params["c"], *ARGV)
 eapier.start
 
