@@ -8,6 +8,7 @@ require "optparse"
 
 require "net/https"
 require "json"
+require "resolv"
 
 
 PARAMS_AUTH = ["user", "passwd"]
@@ -18,10 +19,18 @@ class Eapier
   PARAMS_AUTH = ["user", "passwd", "port"]
 
   def initialize(runcmds, filename_targets, user, passwd, is_https, port_dst,
-                 is_text, *arglist)
+                 is_text, is_enable, is_conf, *arglist)
+
+    modecmd = []
+    modecmd << "enable" if is_enable or is_conf
+    modecmd << "configure" if is_conf
+    runcmds.unshift(*modecmd)
+
     @runcmds = runcmds
     @proto = is_https ? "https" : "http"
+
     @Formatter = is_text ? LogTextFormatter : LogJsonFormatter
+    @resolver = Resolv::Hosts::new
 
     if filename_targets
       begin
@@ -129,6 +138,14 @@ class Eapier
       req = self._get_post_req(uri, auth)
 
       res = self._send_and_receive(uri, req)
+
+      begin
+        sol = @resolver.getaddress(host)
+      rescue Resolv::ResolvError => e
+        sol = nil
+      end
+      host += " (#{sol})" if sol
+
       if res.nil?
         @Formatter::alert(host, "Warning : Skip #{host} and go to the next target host")
         next
@@ -218,10 +235,10 @@ class LogJsonFormatter < LogFormatter
 
 end
 
-params = ARGV.getopts("f:o:u:p:Ts", "port")
+params = ARGV.getopts("f:o:u:p:Tsec", "port")
 runcmds = STDIN.read.split("\n")
 
 eapier = Eapier.new(runcmds, params["f"], params["u"], params["p"], params["s"],
-                    params["port"], params["T"], *ARGV)
+                    params["port"], params["T"], params["e"], params["c"] *ARGV)
 eapier.start
 
