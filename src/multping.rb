@@ -309,11 +309,10 @@ def _build_targets(params)
       vlans -= l_x if not l_x.nil?
       
       vlans.map! do |v| _v_to_addr(v, params["t"]) end
-#      {:common => vlans}
       ret = Hash[nses.zip([] * nses.length) ]
       ret[:common] = vlans
       ret
-#      Hash[nses.zip([vlans] * nses.length) ]      
+
     end
       
   else
