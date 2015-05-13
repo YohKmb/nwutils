@@ -40,26 +40,36 @@ USAGE = <<EOT
       del : delete existing svi(s)
       
       ping : start ping and save their logs
-             default ping mode is l2(layer2) but could be switched with "--l3" switch option
+             default ping mode is l2(layer2)
+             you can switch it to layer3 pinging with "--l3" switch option
       
       help : displays this "usage"       
   
     [command_options]
       -v vlans... : vlans you want to create a coressponding svi
-                    both cisco-like range format and ruby-like range format are accepted (add command)
-      -b bridge_name : bridge name to which svi(s) would be attached (add command)
+                    both cisco-like range format and ruby-like range format are accepted
+                    (used w/ add command)
+      -b bridge_name : bridge name to which svi(s) would be attached
+                       (used w/ add command)
                        default is #{BRIDGE_DEFAULT}
-      -a assigned_addr : ip address of host section that would be assigned to svi(s) (add command)
+      -a assigned_addr : ip address of host section that would be assigned to svi(s)
                          default=#{IP_DEFAULT} (meaning x.x.x.#{IP_DEFAULT})
-      -t target_addr : ip address of host section to which ping is fired (ping command)
+                         (used w/ add command)
+      -t target_addr : ip address of host section to which ping is fired
                        default=#{TARGET_DEFAULT} (meaning y.y.y.#{TARGET_DEFAULT})
-      -x exclude_vlans... : exclude specified vlans from l3 ping targets (ping command, l3 mode)
-      -s specified_vlans... : specify vlans mannually to which ping is fired (ping command, l3 mode)
-      -l log_dir : a name of director in which ping logs would be saved (ping command)
+                       (used w/ ping command)
+      -x exclude_vlans... : exclude specified vlans from l3 ping targets
+                            (used w/ ping command, l3 mode)
+      -s specified_vlans... : specify vlans mannually to which ping is fired
+                              (used /w ping command, l3 mode)
+      -l log_dir : a name of director in which ping logs would be saved
                    default=#{LOGDIR_DEFAULT}
-      -T : switch that decide whether time-stamp are appeded to log_dir's name (ping command)
+                   (used w/ ping command)
+      -T : switch that decide whether time-stamp are appeded to log_dir's name
            defalt=false
+           (used w/ ping command)
       --l3 : switch the mode of pinging from l2 ping to l3 ping
+             (used w/ ping command)
 
 EOT
 # params = ARGV.getopts("v:b:a:t:x:s:l:T", "l3", "no-log")
