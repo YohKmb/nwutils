@@ -363,7 +363,7 @@ end
 ###
 
 cmd = ARGV.shift
-params = ARGV.getopts("v:b:a:t:x:s:l:Th", "l3", "no-log")
+params = ARGV.getopts("v:b:a:t:x:s:l:Th", "l3", "no-log", "help")
 
 params["a"] ||= IP_DEFAULT
 params["a"] = params["a"].to_i
@@ -380,7 +380,7 @@ params["l"] ||= LOGDIR_DEFAULT
 params["l"].sub!(/(?=\.\w+$)|(?=$)/, Time.now.strftime("_%Y%m%d_%H%M%S")) if params["T"]
 
 
-_help(0) if cmd == "help" or params["h"]
+_help(0) if cmd == "help" or params["h"] or params["help"]
 
 if !SUBCMDS.keys.include?(cmd)
   puts "Error : Invalid subcommand"

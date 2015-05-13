@@ -28,6 +28,17 @@ USAGE = <<EOT
       -e : prepend "enable" command to executed commands list
       -c : prepend "enable" and "configure" commands to executed commands list
 
+  example :
+      echo -e "show hostname\nshow version" | \
+        ./eapier.rb -T -s -u admin -p password 192.168.1.1
+
+      the example above send `show hostname` and `show version` commands to
+      an EOS node who resides in 192.168.1.1.
+
+      -s means the connection is established as https
+      -T means you specify the format of outputs returned from EOS not in JSON,
+         but in text-dump.
+
 EOT
 
 PARAMS_AUTH = ["user", "passwd"]
@@ -254,7 +265,18 @@ class LogJsonFormatter < LogFormatter
 
 end
 
-params = ARGV.getopts("f:u:p:Tsec", "port")
+
+def _help(exit_status)
+
+  print USAGE
+  exit(exit_status)
+
+end
+
+
+params = ARGV.getopts("f:u:p:Tsec", "port", "help")
+_help(0) if params["h"] or params["help"]
+
 runcmds = STDIN.read.split("\n")
 
 eapier = Eapier.new(runcmds, params["f"], params["u"], params["p"], params["s"],
