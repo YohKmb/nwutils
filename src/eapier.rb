@@ -10,6 +10,25 @@ require "net/https"
 require "json"
 require "resolv"
 
+Version = "v1.0"
+
+# params = ARGV.getopts("f:u:p:Tsec", "port")
+
+USAGE = <<EOT
+  usage : #{__FILE__} [options] [targets]
+
+    [options]
+      -f filename : specify a JSON formatted file in which targets and infomation
+                    for their authentication are listed
+      -u user
+      -p password
+      -T : switch the output format to text-dumping of show CLI commands
+           (default is JSON formatted outputs)
+      -s : use https protocol for eAPI connection
+      -e : prepend "enable" command to executed commands list
+      -c : prepend "enable" and "configure" commands to executed commands list
+
+EOT
 
 PARAMS_AUTH = ["user", "passwd"]
 
@@ -235,7 +254,7 @@ class LogJsonFormatter < LogFormatter
 
 end
 
-params = ARGV.getopts("f:o:u:p:Tsec", "port")
+params = ARGV.getopts("f:u:p:Tsec", "port")
 runcmds = STDIN.read.split("\n")
 
 eapier = Eapier.new(runcmds, params["f"], params["u"], params["p"], params["s"],
