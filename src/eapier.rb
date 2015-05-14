@@ -18,8 +18,8 @@ USAGE = <<EOT
   usage : #{__FILE__} [options] [targets]
 
     [options]
-      -f filename : specify a JSON formatted file in which targets and infomation
-                    for their authentication are listed
+      -f filename : specify a JSON formatted file in which targets
+                    and infomation for their authentication are listed
       -u user
       -p password
       -T : switch the output format to text-dumping of show CLI commands
@@ -29,7 +29,7 @@ USAGE = <<EOT
       -c : prepend "enable" and "configure" commands to executed commands list
 
   example :
-      echo -e "show hostname\nshow version" | \
+      echo -e "show hostname\\nshow version" | \\
         ./eapier.rb -T -s -u admin -p password 192.168.1.1
 
       the example above send `show hostname` and `show version` commands to
