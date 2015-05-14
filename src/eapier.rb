@@ -1,8 +1,14 @@
 #! /usr/bin/env ruby
 
-##
-##  Copyright 2015 Yoh Kamibayashi
-##
+
+#
+#  Author:: Yoh Kamibayashi (<yoh134shonan@gmail.com>)
+#  Copyright:: Copyright (c) 2015 Yoh Kamibayashi
+#
+#  License:: The MIT License (MIT)
+#    https://github.com/YohKmb/nwutils/blob/master/LICENSE
+#
+
 
 require "optparse"
 
