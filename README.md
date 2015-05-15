@@ -19,6 +19,6 @@ MIT (https://github.com/YohKmb/nwutils/blob/master/LICENSE)
 
 ### Author
 
-Yoh Kamibayashi (https://github.com/tcnksm)
+Yoh Kamibayashi (https://github.com/YohKmb)
 
 

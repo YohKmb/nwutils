@@ -1,8 +1,6 @@
 eapier
 ====
 
-Overview
-
 Command-line utility to administrate multiple Arista EOS nodes.
 
 ### Description
