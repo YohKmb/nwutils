@@ -1,7 +1,6 @@
 # nwutils
 
-<br>
-#### This repository contains some utility tools for test or administrate TCP/IP network
+This repository contains some utility tools for test or administrate TCP/IP network
 
 ====
 
