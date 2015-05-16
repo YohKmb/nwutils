@@ -82,9 +82,15 @@ Logging directory would be created like the hierarchy below.
 
 ### Tutorial
 
-Layer-2 Ping
+ - Layer-2 Ping
 
 ![layer2_ping](./.figures/fig_tutol_l2.png)
+
+ - Layer-3 Ping
+
+
+![layer3_ping](./.figures/fig_tutol_l3.png)
+
 
 
 ### Licence
