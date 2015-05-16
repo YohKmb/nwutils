@@ -20,6 +20,10 @@ Log files for each ping source is automatically saved in a directory. You can sp
     - No non-standard library is required
 
  - Open-vSwitch 1.4.2 or later
+ 
+ - fping
+    - Developped and tested with version 3.2 on 3.18.0-kali3-amd64
+    - The path to fping executable must exist
 
  - Linux whose kernel supports network namespace function
 
