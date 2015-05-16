@@ -15,9 +15,13 @@ Log files for each ping source is automatically saved in a directory. You can sp
 
 ### Requirement
 
- - Ruby later than 1.9 (No non-standard library is required)
+ - Ruby later than 1.9
+    - Developped and tested with ruby 1.9.3p194 on 3.18.0-kali3-amd64
+    - No non-standard library is required
+
  - Open-vSwitch 1.4.2 or later
- - Linux kernel which supports network namespace
+
+ - Linux whose kernel supports network namespace function
 
 
 ### Usage
@@ -74,6 +78,13 @@ Logging directory would be created like the hierarchy below.
     logdir_20150514_163033/
         logdir_20150514_163033/svi.711.log
         logdir_20150514_163033/svi.712.log
+
+
+### Tutorial
+
+Layer-2 Ping
+
+![layer2_ping](./.figures/fig_tutol_l2.png)
 
 
 ### Licence
